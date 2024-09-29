@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 // eslint-disable-next-line import/extensions
 import TWEEN from 'three/examples/jsm/libs/tween.module.js';
+// eslint-disable-next-line import/extensions
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import * as dat from 'lil-gui';
 
 import init from './init';
 
@@ -18,6 +22,14 @@ camera.position.z = 25;
 // const mesh = new THREE.Mesh(geometry, material);
 // scene.add(mesh);
 
+const param = { color: 'white' };
+
+const stats = new Stats();
+stats.showPanel(0);
+document.body.appendChild(stats.dom);
+
+const gui = new dat.GUI({ closeFolders: true });
+
 const group = new THREE.Group();
 
 const geometries = [
@@ -31,15 +43,20 @@ const geometries = [
 	new THREE.OctahedronGeometry(1, 0),
 	new THREE.CylinderGeometry(0.5, 1, 2, 16, 4),
 ];
-
+const guiElMaterial = gui.addFolder('Elements');
 let index = 0;
 let activeIndex = -1;
 for (let i = -5; i <= 5; i += 5) {
 	for (let j = -5; j <= 5; j += 5) {
 		const material = new THREE.MeshBasicMaterial({
-			color: 'gray',
+			color: param.color,
 			wireframe: true,
 		});
+
+		guiElMaterial.add(material, 'wireframe');
+		guiElMaterial
+			.addColor(param, 'color')
+			.onChange(() => material.color.set(param.color));
 
 		const mesh = new THREE.Mesh(geometries[index], material);
 		mesh.position.set(i, j, 10);
@@ -49,6 +66,14 @@ for (let i = -5; i <= 5; i += 5) {
 		index += 1;
 	}
 }
+
+const guiScale = gui.addFolder('Scale');
+guiScale.add(group.scale, 'x').min(0).max(5).step(0.1).name('Box scale X');
+guiScale.add(group.scale, 'y').min(0).max(5).step(0.1).name('Box scale Y');
+guiScale.add(group.scale, 'z').min(0).max(5).step(0.1).name('Box scale Z');
+gui.add(group, 'visible');
+// gui.add(material, 'wireframe');
+// gui.addColor(param, 'color').onChange(() => material.color.set(param.color));
 
 scene.add(group);
 
@@ -71,6 +96,7 @@ const resetActive = () => {
 const clock = new THREE.Clock();
 
 const tick = () => {
+	stats.begin();
 	const delta = clock.getDelta();
 
 	if (activeIndex !== -1) {
@@ -79,6 +105,7 @@ const tick = () => {
 	controls.update();
 	TWEEN.update();
 	renderer.render(scene, camera);
+	stats.end();
 	window.requestAnimationFrame(tick);
 };
 tick();
