@@ -5,33 +5,23 @@ import TWEEN from 'three/examples/jsm/libs/tween.module.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as dat from 'lil-gui';
-
 import init from './init';
-
 import './style.css';
 
+// ------------------------------------Ініціалізація базових об'єктів Three.js
 const { sizes, camera, scene, canvas, controls, renderer } = init();
-
 camera.position.z = 25;
 
-// const geometry = new THREE.BoxGeometry(1, 1, 1);
-// const material = new THREE.MeshBasicMaterial({
-// 	color: 'gray',
-// 	wireframe: true,
-// });
-// const mesh = new THREE.Mesh(geometry, material);
-// scene.add(mesh);
-
-const param = { color: 'white' };
-
+// ------------------------------------Створення статистики для моніторингу продуктивності
 const stats = new Stats();
 stats.showPanel(0);
 document.body.appendChild(stats.dom);
 
+// ------------------------------------GUI для управління параметрами
 const gui = new dat.GUI({ closeFolders: true });
 
+// ------------------------------------Створення групи геометричних об'єктів
 const group = new THREE.Group();
-
 const geometries = [
 	new THREE.BoxGeometry(1, 1, 1),
 	new THREE.ConeGeometry(1, 2, 32, 1),
@@ -43,16 +33,34 @@ const geometries = [
 	new THREE.OctahedronGeometry(1, 0),
 	new THREE.CylinderGeometry(0.5, 1, 2, 16, 4),
 ];
+
+const param = { color: '0x00ffe1' };
+
+// Додаємо Ambient Light
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+// Додаємо Directional Light
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+directionalLight.position.set(5, 5, 5);
+scene.add(directionalLight);
+
+// Додаємо Point Light
+const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+pointLight.position.set(0, 0, 0);
+scene.add(pointLight);
+
 const guiElMaterial = gui.addFolder('Elements');
 let index = 0;
 let activeIndex = -1;
 for (let i = -5; i <= 5; i += 5) {
 	for (let j = -5; j <= 5; j += 5) {
-		const material = new THREE.MeshBasicMaterial({
+		const material = new THREE.MeshStandardMaterial({
 			color: param.color,
-			wireframe: true,
+			wireframe: false,
 		});
 
+		// Додаємо можливість зміни кольору та wireframe через GUI
 		guiElMaterial.add(material, 'wireframe');
 		guiElMaterial
 			.addColor(param, 'color')
@@ -67,18 +75,49 @@ for (let i = -5; i <= 5; i += 5) {
 	}
 }
 
+// Додаємо GUI для масштабування групи
 const guiScale = gui.addFolder('Scale');
 guiScale.add(group.scale, 'x').min(0).max(5).step(0.1).name('Box scale X');
 guiScale.add(group.scale, 'y').min(0).max(5).step(0.1).name('Box scale Y');
 guiScale.add(group.scale, 'z').min(0).max(5).step(0.1).name('Box scale Z');
 gui.add(group, 'visible');
-// gui.add(material, 'wireframe');
-// gui.addColor(param, 'color').onChange(() => material.color.set(param.color));
 
 scene.add(group);
 
+// ------------------------------------ Налаштування фону
+const loader = new THREE.TextureLoader();
+loader.load('./bg.webp', (texture) => {
+	// Створюємо копію текстури, щоб уникнути модифікації параметра
+	const bgTexture = texture.clone();
+
+	// Встановлюємо повтор по осях, щоб уникнути розтягування
+	bgTexture.wrapS = THREE.MirroredRepeatWrapping; // Повтор по горизонталі з дзеркальним відображенням
+	bgTexture.wrapT = THREE.MirroredRepeatWrapping; // Повтор по вертикалі з дзеркальним відображенням
+
+	// Встановлюємо масштабування повтору для адаптації до будь-яких розмірів
+	bgTexture.repeat.set(window.innerWidth / 1000, window.innerHeight / 1000);
+
+	// Додаємо фон до сцени
+	scene.background = bgTexture;
+});
+
+// --------------------------- Оновлюємо розмір сцени та камери при зміні розміру вікна
+window.addEventListener('resize', () => {
+	const width = window.innerWidth;
+	const height = window.innerHeight;
+
+	camera.aspect = width / height;
+	camera.updateProjectionMatrix();
+
+	renderer.setSize(width, height);
+
+	// Оновлення масштабу текстури фону
+	scene.background.repeat.set(width / 1000, height / 1000);
+});
+
+// ------------------------------------ Функція для обнуления активного елемента
 const resetActive = () => {
-	group.children[activeIndex].material.color.set('gray');
+	group.children[activeIndex].material.color.set('white');
 	new TWEEN.Tween(group.children[activeIndex].position)
 		.to(
 			{
@@ -93,8 +132,8 @@ const resetActive = () => {
 	activeIndex = -1;
 };
 
+// ------------------------------------ Оновлюємо сцену і камеру у циклі
 const clock = new THREE.Clock();
-
 const tick = () => {
 	stats.begin();
 	const delta = clock.getDelta();
@@ -110,8 +149,8 @@ const tick = () => {
 };
 tick();
 
+// ------------------------------------ Налаштування події кліку для вибору елемента
 const raycaster = new THREE.Raycaster();
-
 const handleClick = (e) => {
 	const pointer = new THREE.Vector2();
 	pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -142,6 +181,7 @@ const handleClick = (e) => {
 	}
 };
 
+// ------------------------------------ Обробка кліків та розширення на повний екран
 window.addEventListener('click', handleClick);
 
 /** Базовые обработчики событий длы поддержки ресайза */
